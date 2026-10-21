@@ -1,4 +1,3 @@
-
 ### 4. Cria `mission-control-go/day04/README.md`
 ```md
 # Day 04 - HTTP API REST
@@ -19,6 +18,7 @@ Destaque:
 Rodar:
 ```powershell
 go run ./day04
+
 # Terminal 2
 Invoke-RestMethod -Uri http://localhost:8080/health
 Invoke-RestMethod -Method POST -Uri http://localhost:8080/satellites/SAT-01/heat

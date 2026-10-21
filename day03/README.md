@@ -1,6 +1,5 @@
-
-### 3. Cria `mission-control-go/day03/README.md`
-```md
+### 3. Cria `mission-control-go/day03/README.md
+````md
 # Day 03 - Concurrency & Telemetry
 
 Preparando para API.
