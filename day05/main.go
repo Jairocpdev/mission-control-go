@@ -61,7 +61,7 @@ func swaggerHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	html := fmt.Sprintf(`
 	<html><head><title>Mission Control API</title></head>
 	<body style="font-family:monospace;padding:40px;background:#0a0a0a;color:#00ff88;max-width:800px">
