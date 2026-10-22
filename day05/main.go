@@ -143,12 +143,25 @@ func heatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Rotas
 	http.HandleFunc("/", swaggerHandler)
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/satellites", corsMiddleware(satellitesHandler))
 	http.HandleFunc("/telemetry/", corsMiddleware(telemetryHandler))
 	http.HandleFunc("/satellites/", corsMiddleware(heatHandler))
+
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+			mu.Lock()
+			for _, sat := range satellites {
+				sat.Temperature += 1
+				if sat.Temperature > 90 {
+					sat.Temperature = 60
+				}
+			}
+			mu.Unlock()
+		}
+	}()
 
 	port := os.Getenv("PORT")
 	if port == "" {

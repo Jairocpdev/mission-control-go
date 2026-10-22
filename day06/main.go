@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +65,7 @@ func swaggerHandler(w http.ResponseWriter, r *http.Request) {
 	<html><head><title>Mission Control API</title></head>
 	<body style="font-family:monospace;padding:40px;background:#0a0a0a;color:#00ff88;max-width:800px">
 	<h1>🚀 Mission Control Go — Day 05</h1>
-	<p>Base: https://%s</p>
+	<p>Base: https://mission-control-go.onrender.com/</p>
 	<hr>
 	<h2>GET /health</h2><p>Uptime da missão</p><code>curl /health</code>
 	<h2>GET /satellites</h2><p>Lista frota com health</p>
@@ -150,23 +149,24 @@ func main() {
 	http.HandleFunc("/satellites/", corsMiddleware(heatHandler))
 
 	go func() {
-		for {
-			time.Sleep(10 * time.Second)
-			mu.Lock()
-			for _, sat := range satellites {
-				sat.Temperature += 1
-				if sat.Temperature > 90 {
-					sat.Temperature = 60
-				}
-			}
-			mu.Unlock()
-		}
-	}()
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	fmt.Printf("📡 Mission Control Go rodando em :%s (Nilópolis, RJ)\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+    for {
+        time.Sleep(10 * time.Second)
+        mu.Lock()
+        for _, sat := range satellites {
+            sat.Temperature += 1
+            sat.Battery -= 1
+            if sat.Temperature > 90 {
+                sat.Temperature = 60
+                sat.Battery = 85 
+            }
+            if sat.Battery < 0 {
+                sat.Battery = 0
+            }
+        }
+        mu.Unlock()
+    }
+}()
+	
+	fmt.Printf("📡 Mission Control Go rodando em :%s (Nilópolis, RJ)\n", "port:8080")
+	log.Fatal(http.ListenAndServe(":"+ "port:8080", nil))
 }
