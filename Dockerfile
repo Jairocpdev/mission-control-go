@@ -4,7 +4,7 @@ COPY go.mod ./
 ENV GOTOOLCHAIN=auto
 RUN go mod download
 COPY . .
-RUN go build -o server ./day05
+RUN go build -o server ./day06
 
 FROM alpine:latest
 WORKDIR /app
