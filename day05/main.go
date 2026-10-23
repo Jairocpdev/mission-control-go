@@ -17,6 +17,13 @@ type Satellite struct {
 	Battery     int    `json:"battery"`
 }
 
+type HistoryPoint struct {
+	Time string `json:"time"`
+	Temp int    `json:"temp"`
+}
+
+var loc = time.FixedZone("BRT", -3*60*60)
+
 func (s Satellite) CheckHealth() string {
 	if s.Temperature > 85 || s.Battery < 15 {
 		return "CRITICAL"
@@ -39,8 +46,10 @@ var (
 		"SAT-02": {ID: "SAT-02", Temperature: 65, Battery: 10},
 		"SAT-03": {ID: "SAT-03", Temperature: 80, Battery: 50},
 	}
-	mu        sync.Mutex
-	startTime = time.Now()
+	history    = map[string][]HistoryPoint{}
+	mu         sync.Mutex
+	startTime  = time.Now()
+	order      = []string{"SAT-01", "SAT-02", "SAT-03"}
 )
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -65,14 +74,15 @@ func swaggerHandler(w http.ResponseWriter, r *http.Request) {
 	html := fmt.Sprintf(`
 	<html><head><title>Mission Control API</title></head>
 	<body style="font-family:monospace;padding:40px;background:#0a0a0a;color:#00ff88;max-width:800px">
-	<h1>🚀 Mission Control Go — Day 05</h1>
+	<h1>🚀 Mission Control Go — Day 07</h1>
 	<p>Base: https://%s</p>
 	<hr>
-	<h2>GET /health</h2><p>Uptime da missão</p><code>curl /health</code>
-	<h2>GET /satellites</h2><p>Lista frota com health</p>
+	<h2>GET /health</h2><p>Uptime</p>
+	<h2>GET /satellites</h2><p>Lista frota</p>
 	<h2>GET /telemetry/{id}</h2><p>Ex: /telemetry/SAT-02</p>
-	<h2>POST /satellites/{id}/heat</h2><p>Aquece +5°C</p><code>curl -X POST /satellites/SAT-01/heat</code>
-	<hr><p>by Jairo Andrade — <a style="color:#00ff88" href="https://github.com/Jairocpdev/mission-control-go">GitHub</a> | <a style="color:#00ff88" href="https://jairo-andrade.vercel.app">Portfolio</a></p>
+	<h2>POST /satellites/{id}/heat</h2><p>Aquece +5C</p>
+	<h2>GET /history/{id}</h2><p>Histórico 20 pontos em BRT</p>
+	<hr><p>by Jairo Andrade — <a style="color:#00ff88" href="https://github.com/Jairocpdev/mission-control-go">【entity-GitHub¦canonical_name=GitHub】</a></p>
 	</body></html>`, r.Host)
 	w.Write([]byte(html))
 }
@@ -94,7 +104,8 @@ func satellitesHandler(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	list := []Resp{}
-	for _, s := range satellites {
+	for _, id := range order {
+		s := satellites[id]
 		list = append(list, Resp{Satellite: *s, Status: s.CheckHealth()})
 	}
 	json.NewEncoder(w).Encode(list)
@@ -110,22 +121,16 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Telemetry{
-		Satellite: *sat,
-		Status:    sat.CheckHealth(),
-		Timestamp: time.Now(),
-	})
+	json.NewEncoder(w).Encode(Telemetry{Satellite: *sat, Status: sat.CheckHealth(), Timestamp: time.Now()})
 }
 
 func heatHandler(w http.ResponseWriter, r *http.Request) {
-	// path: /satellites/{id}/heat
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) != 3 || parts[0] != "satellites" || parts[2] != "heat" {
 		http.NotFound(w, r)
 		return
 	}
 	id := parts[1]
-
 	mu.Lock()
 	defer mu.Unlock()
 	sat, ok := satellites[id]
@@ -142,21 +147,52 @@ func heatHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func historyHandler(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/history/")
+	mu.Lock()
+	defer mu.Unlock()
+	h, ok := history[id]
+	if !ok {
+		h = []HistoryPoint{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(h)
+}
+
 func main() {
+	// inicia histórico
+	for _, id := range order {
+		history[id] = []HistoryPoint{{Time: time.Now().In(loc).Format("15:04:05"), Temp: satellites[id].Temperature}}
+	}
+
 	http.HandleFunc("/", swaggerHandler)
 	http.HandleFunc("/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/satellites", corsMiddleware(satellitesHandler))
 	http.HandleFunc("/telemetry/", corsMiddleware(telemetryHandler))
 	http.HandleFunc("/satellites/", corsMiddleware(heatHandler))
+	http.HandleFunc("/history/", corsMiddleware(historyHandler))
 
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
 			mu.Lock()
-			for _, sat := range satellites {
+			for _, id := range order {
+				sat := satellites[id]
 				sat.Temperature += 1
+				sat.Battery -= 1
 				if sat.Temperature > 90 {
 					sat.Temperature = 60
+					sat.Battery = 85
+				}
+				if sat.Battery < 0 {
+					sat.Battery = 0
+				}
+				history[id] = append(history[id], HistoryPoint{
+					Time: time.Now().In(loc).Format("15:04:05"),
+					Temp: sat.Temperature,
+				})
+				if len(history[id]) > 20 {
+					history[id] = history[id][1:]
 				}
 			}
 			mu.Unlock()
@@ -167,6 +203,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	fmt.Printf("📡 Mission Control Go rodando em :%s (Nilópolis, RJ)\n", port)
+	fmt.Printf("📡 Mission Control Go Day07 rodando em :%s BRT\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
