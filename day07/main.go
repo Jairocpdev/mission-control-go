@@ -38,6 +38,8 @@ type HistoryPoint struct {
 	Temp int    `json:"temp"`
 }
 
+var loc = time.FixedZone("BRT", -3*60*60)
+
 var (
 	satellites = map[string]*Satellite{
 		"SAT-01": {ID: "SAT-01", Temperature: 70, Battery: 85},
@@ -75,8 +77,7 @@ func swaggerHandler(w http.ResponseWriter, r *http.Request) {
 	<h1>🚀 Mission Control Go — Day 07</h1><p>Base: https://%s</p><hr>
 	<h2>GET /health</h2><h2>GET /satellites</h2><h2>GET /telemetry/{id}</h2>
 	<h2>POST /satellites/{id}/heat</h2><h2>GET /history/{id}</h2>
-	<hr><p>by Jairo Andrade — <a style="color:#00ff88" href="https://github.com/Jairocpdev/mission-control-go">【entity-GitHub¦canonical_name=GitHub】</a></p>
-	</body></html>`, r.Host)
+	<hr><p>by Jairo Andrade</p></body></html>`, r.Host)
 	w.Write([]byte(html))
 }
 
@@ -174,7 +175,7 @@ func main() {
 					sat.Battery = 0
 				}
 				history[sat.ID] = append(history[sat.ID], HistoryPoint{
-					Time: time.Now().Format("15:04:05"),
+					Time: time.Now().In(loc).Format("15:04:05"),
 					Temp: sat.Temperature,
 				})
 				if len(history[sat.ID]) > 20 {
@@ -189,6 +190,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	fmt.Printf("📡 Mission Control Go Day 07 rodando em :%s\n", port)
+	fmt.Printf("📡 Mission Control Go Day 07 rodando em :%s BRT\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
